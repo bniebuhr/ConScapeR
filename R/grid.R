@@ -24,7 +24,8 @@
 #' @export
 #'
 #' @example examples/Grid_example.R
-Grid <- function(affinities, sources, targets, costs) {
+Grid <- function(affinities, sources, targets, costs,
+                 coarse_graining = FALSE, fact = 20) {
   # affinities
   if (class(affinities)[1] == "SpatRaster") {
     affinities <- terra::as.matrix(affinities, wide = T)
@@ -70,6 +71,29 @@ Grid <- function(affinities, sources, targets, costs) {
                   costs=ConScape.graph_matrix_from_raster(costs))",
                   affinities=affinities, sources=sources, targets=targets, costs=costs)
   }
+
+  if(coarse_graining) {
+
+    if (class(costs) == "character"){
+      g_coarse <- JuliaConnectoR::juliaLet(
+        paste0("ConScape.Grid(size(affinities)...,
+              affinities=ConScape.graph_matrix_from_raster(affinities),
+              source_qualities=sources,
+              target_qualities=ConScape.coarse_graining(g, ", fact, "),
+              costs=ConScape.mapnz(", costs, ", ConScape.graph_matrix_from_raster(affinities)))"),
+        affinities=affinities, sources=sources, g=g)
+    } else {
+      g_coarse <- JuliaConnectoR::juliaLet("ConScape.Grid(size(affinities)...,
+                  affinities=ConScape.graph_matrix_from_raster(affinities),
+                  source_qualities=sources,
+                  target_qualities=ConScape.coarse_graining(g, ", fact, "),
+                  costs=ConScape.graph_matrix_from_raster(costs))",
+                                    affinities=affinities, sources=sources, g=g)
+    }
+    g <- JuliaConnectoR::juliaLet("ConScape.largest_subgraph(g_coarse)",
+                                  g_coarse = g_coarse)
+  }
+
   return(g)
 }
 
